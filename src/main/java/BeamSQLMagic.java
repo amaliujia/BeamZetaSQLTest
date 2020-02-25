@@ -15,7 +15,11 @@ import org.apache.beam.sdk.values.Row;
 import java.util.stream.Collectors;
 
 /**
- * Do some randomness
+ * Run on direct runner
+ *     mvn compile exec:java -Dexec.mainClass=com.google.cloud.zetasql.BeamSQLMagic
+ *
+ * Run on spark runner
+ *     mvn compile exec:java -Dexec.mainClass=com.google.cloud.zetasql.BeamSQLMagic -Dexec.args="--runner=SparkRunner"
  */
 public class BeamSQLMagic {
     public static final String HEADER = "state_id,state_code,state_name,sales_region";
@@ -42,7 +46,7 @@ public class BeamSQLMagic {
                 .apply("transform_to_row", ParDo.of(new RowParDo())).setRowSchema(SCHEMA)
                 .apply("transform_sql", SqlTransform.query(
                         "SELECT sales_region, COUNT(state_id) as num_state " +
-                                "FROM PCOLLECTION GROUP BY sales_region ORDER BY 2 DESC LIMIT 20")
+                                "FROM PCOLLECTION GROUP BY sales_region LIMIT 20")
                 )
                 .apply("transform_to_string", ParDo.of(new RowToString()))
                 .apply("write_to_gcs", TextIO.write().to("gs://ruwang-test/test_output/output.csv").withoutSharding());
@@ -57,7 +61,7 @@ public class BeamSQLMagic {
                 String[] vals = c.element().split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
                 Row appRow = Row
                         .withSchema(SCHEMA)
-                        .addValues(vals[4], Long.valueOf(vals[6]))
+                        .addValues(Long.valueOf(vals[0]), vals[1], vals[2], vals[3])
                         .build();
                 c.output(appRow);
             }
